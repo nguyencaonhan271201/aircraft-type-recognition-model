@@ -1,0 +1,266 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <title>Áp dụng phương pháp Transfer Learning xây dựng mạng Neuron tích chập nhận diện loại máy bay theo ảnh?</title>
+    <!-- Required meta tags -->
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+    <link rel="icon" href="./images/ncn.ico">
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Serif:ital,wght@0,400;0,700;1,400;1,700&display=swap" rel="stylesheet"> 
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:ital,wght@0,100;0,300;0,400;0,500;0,700;0,900;1,100;1,300;1,400;1,500;1,700;1,900&display=swap" rel="stylesheet">     <!-- Bootstrap CSS -->
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/css/bootstrap.min.css" integrity="sha384-ggOyR0iXCbMQv3Xipma34MD+dH/1fQ784/j6cY/iJTQUOhcWr7x9JvoRxT2MZw1T" crossorigin="anonymous">
+    <link rel="stylesheet" href="style.css">
+</head>
+  <body>
+    <div class="container">
+        <div class="title">
+            <h1 class="display-5 text-center text-uppercase">Áp dụng Transfer Learning xây dựng mạng Neuron tích chập nhận diện loại máy bay theo ảnh</h1>
+            <h5 class="font-italic text-right mt-4">Nguyễn Cao Nhân</h5>
+        </div>
+        
+        <div class="subtitle mt-4">
+            <h5 class="subtitle-text"> 
+                Với mong muốn ứng dụng kiến thức đã học và xây dựng một mô hình có thể sử dụng cho sở thích cá nhân, ở đề tài này, 
+                mình xây dựng một mô hình nhận diện loại máy bay từ ảnh
+                bằng cách sử dụng phương pháp Transfer Learning. Mô hình sau khi được train trên tập dataset FGVC-Aircraft có thể nhận diện
+                được 105 loại máy bay khác nhau, đạt độ chính xác tương đối từ 70-80%.
+            </h5>
+        </div>
+
+        <div class="paragraph">
+            <h2>I. MÔ HÌNH VÀ DATASET</h2>
+            <p>
+                Transfer Learning (còn gọi là Học chuyển giao) là phương pháp sử dụng một cấu trúc mạng Neuron đã có sẵn và tiến hành tái sử dụng
+                tập weights đã train, kết hợp điều chỉnh và bổ sung cấu trúc của mạng để áp dụng vào một bài toán cụ thể nào đó.
+            </p>
+            <p>
+                Ở bài này, mình sử dụng phương pháp Transfer Learning dựa trên cấu trúc mạng <a href="https://arxiv.org/pdf/1608.06993v3.pdf">DenseNet-201</a>
+                để xử lý bài toán. Mô hình được bổ sung ngoài các layers được pre-trained của DenseNet-201 thêm 1 layer Global Average Pooling, 
+                2 khối Dense - Batch Norm - Dropout (hạn chế overfit) và output. Ở bài này, do số lượng param và input không quá lớn nên
+                mình không thực hiện freeze các layers đã có sẵn của DenseNet-201 với mong muốn mô hình có thể đạt kết quả chính xác hơn 
+                (đánh đổi bằng thời gian train tăng gấp nhiều lần).
+            </p>
+            <div class="row">
+                <div class="col-md-10 offset-md-1 col-sm-12 offset-sm-0 text-center">
+                    <img alt="" src="images/model.PNG">
+                    <p class="img-cap">Summary cấu trúc mạng</p>
+                </div>
+            </div>         
+            <p>
+                Dataset được sử dụng cho huấn luyện là tập dataset  <a href="https://www.robots.ox.ac.uk/~vgg/data/fgvc-aircraft/">FGVC-Aircraft</a>
+                (gồm 10 000 ảnh với 102 loại máy bay khác nhau, mỗi loại máy bay gồm 100 ảnh). 
+            </p>
+            <div class="row text-center">
+                <div class="col-md-10 offset-md-1 col-sm-12 offset-sm-0 text-center">
+                    <img alt="" src="images/dataset.jpg">
+                    <p class="img-cap">FGVC-Aircraft Dataset</p>
+                </div>
+            </div>     
+            <p>Tập dữ liệu phân bố khá tốt về số lượng ảnh cho mỗi labels (dù có tồn tại vài ảnh gây nhiễu). Tuy nhiên, do dataset được tạo từ năm 2013, khá 
+                cũ so với hiện tại nên tập dữ liệu hoàn toàn thiếu một số dòng máy bay mới như Airbus A350 hay Boeing 787. Vì vậy, để mô hình có thể tương thích
+                với thời gian hơn, mình tự bổ sung vào dataset thêm 500 ảnh của 5 dòng máy bay mới (gồm Boeing 787-8, 787-9, 787-10 và Airbus A350-900, A350-1000, 
+                phân bố đều 100 ảnh cho mỗi dòng máy bay). Ảnh chủ yếu được download từ <a href="jetphotos.com">JetPhotos</a>.
+            </p>
+            <div class="row text-center">
+                <div class="col-md-10 offset-md-1 col-sm-12 offset-sm-0 text-center">
+                    <img alt="" src="images/dataset2.PNG">
+                    <p class="img-cap">Dataset bổ sung (ví dụ trong ảnh: Label "A350-900")</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="paragraph">
+            <h2>II. QUÁ TRÌNH HUẤN LUYỆN</h2>
+            <p>
+                Ở lần train đầu tiên, mình sử dụng 20 epoch cho quá trình train, với thời gian train trung bình cho mỗi epoch khoảng 150 giây.
+                Nhận thấy accuracy trên tập validation tăng dần từ khoảng 6% cho epoch đầu đến tối đa khoảng 78% cho epoch 20. Độ chính xác
+                trên tập test set sau 20 epoch đạt khoảng 79%, tương đối tốt so với kỳ vọng của một mô hình phân loại lên đến 105 nhãn.
+            </p>
+            <div class="row">
+                <div class="col-md-10 offset-md-1 col-sm-12 offset-sm-0">
+                    <img alt="" src="images/train0.PNG">
+                    <p class="img-cap">Quá trình train lần đầu</p>
+                </div>
+            </div>
+            <p>
+                Tuy nhiên, khi test thử mô hình trên các ảnh thực tế được thu thập từ Internet thì kết quả không thật sự tốt
+                như mong đợi. Cụ thể, mô hình có xu hướng dự đoán không thật sự tốt nếu kết cấu ảnh có nhiều yếu tố gây nhiễu (ví dụ
+                ảnh có nhiều máy bay xung quanh hoặc máy bay trên mặt đất và có các yếu tố khác như sân bay, đường băng).
+            </p>
+            <div class="row text-center">
+                <div class="col-md-6 col-sm-12 d-flex align-items-center">
+                    <img alt="" src="images/test1a.jpg">
+                </div>
+                <div class="col-md-6  col-sm-12 d-flex align-items-center">
+                    <img alt="" src="images/test1b.jpg">
+                </div>
+                <div class="col-md-6 col-sm-12 d-flex align-items-center">
+                    <img alt="" src="images/test1c.jpg">
+                </div>
+                <div class="col-md-6  col-sm-12 d-flex align-items-center">
+                    <img alt="" src="images/test1d.jpg">
+                </div>
+                <p class="img-cap">Ví dụ về một số trường hợp dự đoán sai của mô hình.</p>
+            </div>     
+            <p>
+                Đặt ra vấn đề nằm ở việc đôi lúc máy bay không phải là nhân tố chủ đạo trong 1 ảnh (ví dụ trong ảnh 1, thành phần mặt đất
+                và kết cấu xung quanh có thể là nhân tố mà mô hình "chắt lọc features" nhiều hơn, dẫn đến việc dễ bị đẩy hướng dự đoán
+                loại máy bay theo label có nhiều ảnh chụp kết cấu mặt đất giống ảnh test).
+            </p>
+            <p>
+                Để khắc phục vấn đề nói trên, một trong những giải pháp được lựa chọn là thay vì sử dụng toàn bộ ảnh làm input cho mô hình,
+                tiến hành nhận diện và chỉ cắt ra vùng ảnh có máy bay. Nhằm đạt được mong muốn đó, lựa chọn của mình là sử dụng
+                mô hình mạng <a href="https://ultralytics.com/yolov5">YOLOv5</a> 
+                 (một mô hình mạng Neuron tích chập phát triển cho việc phát hiện, nhận diện, phân loại đối tượng).
+                May mắn rằng trong hệ thống labels của YOLO đã có label "Aeroplane", nên có thể ứng dụng thẳng mạng
+                mà không cần hiệu chỉnh hoặc tiến hành train lại.
+            </p>
+            <div class="row">
+                <div class="col-md-10 offset-md-1 col-sm-12 offset-sm-0 text-center">
+                    <img alt="" src="images/yolo1.webp">
+                    <p class="img-cap">Ví dụ về hoạt động của mạng YOLO</p>
+                </div>
+            </div>
+            <p>
+                Dataset gồm rất nhiều ảnh, nhưng không phải ảnh nào cũng chỉ đơn thuần mang 1 đối tượng máy bay (ví dụ trong ảnh bên dưới
+                thuộc dataset gốc của FGVC-Aircraft, có rất nhiều máy bay trong cùng 1 ảnh), dẫn đến nếu đưa các ảnh vào mạng YOLO thì kết quả
+                trả về sẽ nhận diện được nhiều đối tượng "Aeroplane" khác nhau, chưa kể có thể một số đối tượng khác cũng được nhận diện cùng.
+            </p>
+            <p>
+                Có thể lựa chọn giải pháp crop toàn bộ các đối tượng "Aeroplane" nhận diện được và cho vào mô hình, nhưng điều này
+                có thể dẫn đến một vấn đề khác. Giả sử trong ảnh gồm nhiều chiếc máy bay thuộc các loại khác nhau, nhưng ảnh chỉ được label
+                theo chiếc máy bay chiếm diện tích ảnh lớn nhất thì vô hình chung chúng ta đã đưa vào dataset rất nhiều ảnh sai, có thể ảnh
+                hưởng không nhỏ đến độ chính xác của mô hình.
+            </p>
+            <div class="row">
+                <div class="col-md-10 offset-md-1 col-sm-12 offset-sm-0 text-center">
+                    <img alt="" src="images/yolo2.png">
+                    <p class="img-cap">Kết quả trả về khi input 1 ảnh nhiều đối tượng vào mạng YOLO</p>
+                </div>
+            </div>
+            <p>
+                Giải pháp: Thay vì đưa toàn bộ các nhãn được nhận diện, mình tiến hành cho từng ảnh đơn vào mạng YOLO và phân tích kết quả trả ra.
+                Cụ thể, trong tất cả các bounding box thuộc label "Aeroplane", mình sẽ chỉ giữ lại box có diện tích lớn nhất và đảm bảo
+                confidence (độ tự tin của mô hình về kết quả nhận diện đối tượng) trên một ngưỡng cho phép. Ngoài ra với các ảnh nhiễu (ví dụ ảnh
+                chụp buồng lái, ảnh chụp động cơ) mà YOLO không thể nhận diện được đối tượng máy bay, mình sẽ loại khỏi dataset.
+            </p>
+            <div class="row">
+                <div class="col-md-10 offset-md-1 col-sm-12 offset-sm-0 text-center">
+                    <img alt="" src="images/yolo3.PNG">
+                    <p class="img-cap">Dataset sau khi được tiền xử lý bằng cách sử dụng mạng YOLO và tiến hành cắt ảnh.</p>
+                </div>
+            </div>
+            <p>
+                Về cơ bản, tất cả input vào trong mô hình trong quá trình huấn luyện đều đảm bảo trọng điểm là cấu trúc máy bay, hạn chế
+                được việc mô hình chắt lọc features quá nhiều trên các yếu tố bên ngoài, có thể tăng hiệu quả của mô hình cao hơn. Để hạn chế
+                thao tác, thay vì xác định bounding box từ YOLO và tiến hành cắt ảnh ngay trong quá trình train, mình tiền xử lý ảnh bằng cách cắt sẵn
+                và cập nhật trực tiếp trong dataset để tránh việc memory bị sử dụng quá nhiều (thật ra vì Colab nó cũng giới hạn do xài Free :'') )
+            </p>
+            <div class="row">
+                <div class="col-md-10 offset-md-1 col-sm-12 offset-sm-0 text-center">
+                    <img alt="" src="images/train1.PNG">
+                    <p class="img-cap">Quá trình train lần hai.</p>
+                </div>
+            </div>
+            <p>
+                Train lại mô hình với dataset đã tiền xử lý, nhận thấy độ chính xác tương đối đạt 81%, tăng khoảng 2% so với mô hình cũ. 2% không quá
+                lớn nhưng kiểm thử mô hình trên ảnh bên ngoài cho độ chính xác cao hơn tương đối nhiều so với mô hình train trên dataset ban đầu.
+            </p>
+            <div class="row text-center">
+                <div class="col-md-6 col-sm-12 d-flex align-items-center">
+                    <img alt="" src="images/test2a.jpg">
+                </div>
+                <div class="col-md-6  col-sm-12 d-flex align-items-center">
+                    <img alt="" src="images/test2b.jpg">
+                </div>
+                <div class="col-md-6 col-sm-12 d-flex align-items-center">
+                    <img alt="" src="images/test2c.jpg">
+                </div>
+                <div class="col-md-6  col-sm-12 d-flex align-items-center">
+                    <img alt="" src="images/test2d.jpg">
+                </div>
+                <p class="img-cap">Kết quả dự đoán trên các ảnh bị gán sai nhãn ban đầu.</p>
+            </div>   
+        </div>
+
+        <div class="paragraph">
+            <h2>III. DEPLOY MÔ HÌNH LÊN SERVER</h2>
+
+            <p>Để có thể sử dụng mô hình như một tính năng, mình sử dụng Flask và deploy mô hình lên Server host bởi Heroku.
+                Tuy nhiên, do Heroku đặt rất nhiều giới hạn về cả dung lượng (tổng lượng lưu trữ tính cả các thư viện hỗ trợ
+            không vượt quá 500MB) và thời gian timed out của request (maximum 30s) khiến cho việc deploy gặp rất nhiều khó khăn.</p>
+
+            <p>Sau cùng thì mình cũng deploy thành công mô hình lên server cho phép đăng tải ảnh và hiển thị 5 nhãn có xác suất cao nhất.
+            Đôi lúc có thể bị timed out và crash trang nhưng nhìn chung thì Server hoạt động tương đối với lưu lượng trong ngưỡng. Một số kết quả
+            dự đoán từ Server có thể xem bên dưới.
+            </p>
+
+            <div class="row text-center">
+                <div class="col-md-8 offset-md-2 col-sm-12 d-flex align-items-center">
+                    <img alt="" src="images/site1.png">
+                </div>
+                <div class="col-md-8 offset-md-2 col-sm-12 d-flex align-items-center">
+                    <img alt="" src="images/site2.png">
+                </div>
+                <div class="col-md-8 offset-md-2 col-sm-12 d-flex align-items-center">
+                    <img alt="" src="images/site3.png">
+                </div>
+                <div class="col-md-8 offset-md-2 col-sm-12 d-flex align-items-center">
+                    <img alt="" src="images/site4.png">
+                </div>
+                <div class="col-md-8 offset-md-2 col-sm-12 d-flex align-items-center">
+                    <img alt="" src="images/site6.png">
+                </div>
+                <div class="col-md-8 offset-md-2 col-sm-12 d-flex align-items-center">
+                    <img alt="" src="images/site5.png">
+                </div>
+                <div class="col-md-8 offset-md-2 col-sm-12 d-flex align-items-center">
+                    <img alt="" src="images/site7.png">
+                </div>
+                <p class="img-cap">Sử dụng tính năng dự đoán của mô hình trên site.</p>
+            </div> 
+        </div>
+
+        <div class="paragraph">
+            <h2>IV. MỘT SỐ HƯỚNG CẢI TIẾN</h2>
+
+            <p>
+                Tuy accuracy đạt 81% nhưng đây vẫn là một kết quả khá khiêm tốn so với một số thử nghiệm trên cùng dataset bằng các
+                cấu trúc mạng khác. Theo thông số trên trang web <a href="https://paperswithcode.com/sota/fine-grained-image-classification-on-fgvc">https://paperswithcode.com/sota/fine-grained-image-classification-on-fgvc</a>
+                về bài toán Fine-Grained Image Classification (nhận diện ảnh các loại của cùng 1 đối tượng) có thử nghiệm trên dataset FGVC-Aircraft, độ chính xác
+                cao nhất hiện tại lên đến xấp xỉ 95%, cao hơn rất nhiều so với độ chính xác hiện tại mô hình của mình.
+            </p>            
+
+            <p>Có nhiều hướng cải tiến cho mô hình mà mình có nghĩ tới, trong đó một hướng có thể khả thi và đơn giản là thay vì đơn thuần
+                tách vùng ảnh chứa máy bay để đảm bảo mô hình dự đoán chính xác hơn khi chắt lọc features từ vùng máy bay, là thay vì chỉ khoanh box
+                chữ nhật quanh máy bay, có thể sử dụng một số mô hình Semantic Image Segmentation để phân loại rõ từng đối tượng theo vùng ảnh cụ thể
+                và tiến hành cắt riêng vùng ảnh đó để đảm bảo từng ảnh trong dataset chỉ còn cụ thể hình dạng máy bay.
+            </p>
+
+            <div class="row">
+                <div class="col-md-10 offset-md-1 col-sm-12 offset-sm-0 text-center">
+                    <img alt="" src="images/semantic.png">
+                    <p class="img-cap">Ví dụ về một mô hình Semantic Image Segmentation.</p>
+                </div>
+            </div>
+        </div>
+
+        <p class="font-italic">P/s: Heroku đang điên nên mọi người đừng vào trang đó theo URL nha :'') Nó sập nữa</p>
+
+        <div class="end mb-4">
+            <a href="https://nhannc.site/" style="color: black;"><h5 class="font-italic text-right mt-4">Nguyễn Cao Nhân</h5></a>
+        </div>
+    </div>
+
+    <div class="image-box">
+        <img src="" alt="">
+    </div>
+
+    <!-- Optional JavaScript -->
+    <!-- jQuery first, then Popper.js, then Bootstrap JS -->
+    <script src="https://code.jquery.com/jquery-3.3.1.slim.min.js" integrity="sha384-q8i/X+965DzO0rT7abK41JStQIAqVgRVzpbzo5smXKp4YfRvH+8abtTE1Pi6jizo" crossorigin="anonymous"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.14.7/umd/popper.min.js" integrity="sha384-UO2eT0CpHqdSJQ6hJty5KVphtPhzWj9WO1clHTMGa3JDZwrnQq4sF86dIHNDz0W1" crossorigin="anonymous"></script>
+    <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/js/bootstrap.min.js" integrity="sha384-JjSmVgyd0p3pXB1rRibZUAYoIIy6OrQ6VrjIEaFf/nJGzIxFDsf4x0xIM+B07jRM" crossorigin="anonymous"></script>
+    <script type="text/javascript" src="main.js"></script>
+    </body>
+</html>
